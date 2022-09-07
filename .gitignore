@@ -3,3 +3,4 @@
 ./.idea
 ./data
 ./check_points/*
+./cache
