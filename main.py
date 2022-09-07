@@ -275,11 +275,11 @@ def predict(arguments, tokenizer_, model_, device_, temperature=1, top_p=0.8):
                 # print("\n")
 
                 next_token = torch.multinomial(F.softmax(logits, dim=-1), num_samples=1)
-                # print(next_token)
-                # text = torch.cat((next_token, space_tensor), dim=1)
-                # text = list(text.squeeze().numpy())
-                # print(tokenizer_.decode(text))
-                # print("\n")
+                print(next_token)
+                text = torch.cat((next_token, space_tensor), dim=1)
+                text = list(text.cpu().squeeze().numpy())
+                print(tokenizer_.decode(text))
+                print("\n")
                 generated = torch.cat((generated, next_token, space_tensor), dim=1)
 
                 if next_token in tokenizer_.encode("[EOD]"):
@@ -287,7 +287,7 @@ def predict(arguments, tokenizer_, model_, device_, temperature=1, top_p=0.8):
 
                 if entry_finished:
                     generated_num = generated_num + 1
-                    output_list = list(generated.squeeze().numpy())
+                    output_list = list(generated.cpu().squeeze().numpy())
                     output_text = tokenizer_.decode(output_list)
                     generated_list.append(output_text)
                     break
