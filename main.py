@@ -205,6 +205,7 @@ def predict(arguments, tokenizer_, model_, device_, temperature=1, top_p=0.8):
     # model_.eval()
     generated_num = 0
     generated_list = []
+    space_tensor = torch.tensor(tokenizer_.encode(" ")).unsqueeze(0)
 
     for input_ids, input_mask, segment_ids in tqdm(
             predict_dataloader, desc="Evaluating", disable=False
@@ -274,11 +275,11 @@ def predict(arguments, tokenizer_, model_, device_, temperature=1, top_p=0.8):
 
                 next_token = torch.multinomial(F.softmax(logits, dim=-1), num_samples=1)
                 print(next_token)
-                text = torch.cat((next_token, torch.tensor(tokenizer_.encode(" ")).unsqueeze(0)), dim=1)
+                text = torch.cat((next_token, space_tensor), dim=1)
                 text = list(text.squeeze().numpy())
                 print(tokenizer_.decode(text))
                 print("\n")
-                generated = torch.cat((generated, next_token, torch.tensor(tokenizer_.encode(" ")).unsqueeze(0)), dim=1)
+                generated = torch.cat((generated, next_token, space_tensor), dim=1)
 
                 if next_token in tokenizer_.encode("[EOD]"):
                     entry_finished = True
