@@ -206,6 +206,7 @@ def predict(arguments, tokenizer_, model_, device_, temperature=1, top_p=0.8):
     generated_num = 0
     generated_list = []
     space_tensor = torch.tensor(tokenizer_.encode(" ")).unsqueeze(0)
+    space_tensor = space_tensor.to(device_)
 
     for input_ids, input_mask, segment_ids in tqdm(
             predict_dataloader, desc="Evaluating", disable=False
