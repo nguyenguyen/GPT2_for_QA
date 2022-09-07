@@ -158,7 +158,8 @@ def train(arguments, tokenizer_, model_, device_, latest_epoch_no_):
     # accumulating_batch_count = 0
     pbar = tqdm(train_dataloader, disable=True)
     print(f"pbar : {len(pbar)}")
-    for epoch in range(latest_epoch_no_ + 1, int(arguments.num_train_epochs) + latest_epoch_no_ + 1):
+    max_epoch = int(arguments.num_train_epochs) + latest_epoch_no_ + 1
+    for epoch in range(latest_epoch_no_ + 1, max_epoch):
         logger.info(f"Training epoch: {epoch}")
         for step, batch in enumerate(pbar):
             batch = tuple(t.to(device_) for t in batch)
@@ -182,7 +183,8 @@ def train(arguments, tokenizer_, model_, device_, latest_epoch_no_):
                 model_.zero_grad()
                 global_step += 1
         logger.info(f"Loss: {loss}")
-        save_model(tokenizer_, model_, epoch)
+        if epoch % 10 == 0 or epoch == max_epoch - 1:
+            save_model(tokenizer_, model_, epoch)
     model_.to(device_)
 
 
