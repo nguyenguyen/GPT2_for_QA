@@ -29,7 +29,8 @@ from tqdm import tqdm, trange
 
 import logging
 logging.basicConfig(
-        format="%(asctime)s - %(levelname)s - %(name)s -   %(message)s",
+        format="%(message)s",
+        # format="%(asctime)s - %(levelname)s - %(name)s -   %(message)s",
         datefmt="%m/%d/%Y %H:%M:%S",
         level=logging.INFO,
 )
@@ -116,12 +117,10 @@ def get_data(data_file, arguments, tokenizer_, is_training, is_predict, context_
     return data_loader, n_train_optimization_steps
 
 
-def save_model(model_, epoch):
+def save_model(tokenizer_, model_, epoch):
     folder_path = f"{CHECK_POINTS_DIR}{date.today()}/epoch_{epoch}"
     if not os.path.exists(folder_path):
         os.makedirs(folder_path)
-    # torch.save(model_.state_dict(), f"{folder_path}/{epoch}.pt")
-    # torch.save(model_.state_dict(), f"{folder_path}/{epoch}.json")
 
     # Save a trained model, configuration and tokenizer
     model_to_save = (
@@ -130,10 +129,12 @@ def save_model(model_, epoch):
 
     torch.save(model_to_save.state_dict(), f"{folder_path}/{MODEL_WEIGHTS_NAME}")
     model_to_save.config.to_json_file(f"{folder_path}/{MODEL_CONFIG_NAME}")
+    tokenizer_.save_vocabulary(f"{CHECK_POINTS_DIR}{date.today()}")
 
 
-def train(arguments, tokenizer_, model_, device_):
-    logger.info("**** START TRAINING *****")
+def train(arguments, tokenizer_, model_, device_, latest_epoch_no_):
+    logger.info("\n\n**** START TRAINING *****")
+    logger.info("Getting training data...")
     train_dataloader, n_train_optimization_steps = get_data(
         data_file=arguments.train_file,
         arguments=arguments,
@@ -141,6 +142,7 @@ def train(arguments, tokenizer_, model_, device_):
         is_training=True,
         is_predict=False,
     )
+    logger.info("Setting model and optimizer...")
     model_.train()
     optimizer, scheduler = set_optimizer(
         model_,
@@ -156,9 +158,8 @@ def train(arguments, tokenizer_, model_, device_):
     # accumulating_batch_count = 0
     pbar = tqdm(train_dataloader, disable=True)
     print(f"pbar : {len(pbar)}")
-    for epoch in trange(int(arguments.num_train_epochs), desc="Epoch"):
+    for epoch in range(latest_epoch_no_ + 1, int(arguments.num_train_epochs) + latest_epoch_no_ + 1):
         logger.info(f"Training epoch: {epoch}")
-        logger.info(f"Loss: {loss}")
         for step, batch in enumerate(pbar):
             batch = tuple(t.to(device_) for t in batch)
             (
@@ -166,13 +167,13 @@ def train(arguments, tokenizer_, model_, device_):
                 input_mask,
                 segment_ids,
             ) = batch
-            outputs = model_(input_ids, labels=input_ids, token_type_ids=segment_ids)
+            outputs = model_(input_ids, labels=input_ids, attention_mask=input_mask, token_type_ids=segment_ids)
             loss = outputs[0]
             total_loss += loss.item()
             loss.backward()
             pbar.update(1)
             if step % 10 == 0:
-                pbar.set_description(desc=f"loss:{np.mean(total_loss)}")
+                pbar.set_description(desc=f"Average loss:{np.mean(total_loss)}")
                 total_loss = 0
             if (step + 1) % arguments.gradient_accumulation_steps == 0:
                 optimizer.step()
@@ -180,27 +181,12 @@ def train(arguments, tokenizer_, model_, device_):
                 optimizer.zero_grad()
                 model_.zero_grad()
                 global_step += 1
-
-        save_model(model_, epoch)
-
-    # tokenizer_folder = f"{CHECK_POINTS_DIR}{date.today()}"
-    # if not os.path.exists(tokenizer_folder):
-    #     os.makedirs(tokenizer_folder)
-    tokenizer_.save_vocabulary(f"{CHECK_POINTS_DIR}{date.today()}")
-
+        logger.info(f"Loss: {loss}")
+        save_model(tokenizer_, model_, epoch)
     model_.to(device_)
 
 
-def choose_from_top(probs, n=5):
-    ind = np.argpartition(probs, -n)[-n:]
-    top_prob = probs[ind]
-    top_prob = top_prob / np.sum(top_prob) # Normalize
-    choice = np.random.choice(n, 1, p = top_prob)
-    token_id = ind[choice][0]
-    return int(token_id)
-
-
-def predict(arguments, tokenizer_, model_, device_, temperature=0.7, top_p=0.9):
+def predict(arguments, tokenizer_, model_, device_, temperature=1, top_p=0.8):
     context = "At the period in which i commence this history there resided in this mansion an elderly spinster of rank named the Honourable Miss Delmar sister of the late Lord de Versely and aunt to the present earl and an Honourable Captain Delmar who was the second son of the deceased nobleman. This property belonged to the Honourable Miss Delmar and was at her entire disposal upon her decease. At the period in which i commence this history there resided in this mansion an elderly spinster of rank named the Honourable Miss Delmar sister of the late Lord de Versely and aunt to the present earl and an Honourable Captain Delmar who was the second son of the deceased nobleman. This property belonged to the Honourable Miss Delmar and was at her entire disposal upon her decease. At the period in which i commence this history there resided in this mansion an elderly spinster of rank named the Honourable Miss Delmar sister of the late Lord de Versely and aunt to the present earl and an Honourable Captain Delmar who was the second son of the deceased nobleman. This property belonged to the Honourable Miss Delmar and was at her entire disposal upon her decease. As soon as the tailor had gone Miss Medea asked me if i would not like to take another run in the garden. i knew that she wished to speak to her father and therefore had a pleasure in disappointing her. i therefore replied that i had been there nearly the whole day and did not wish to go out any more. Never mind whether you wish it or not i wish you to go replied Miss Medea tartly. Medea how can you be so rude. As soon as the tailor had gone Miss Medea asked me if i would not like to take another run in the garden. i knew that she wished to speak to her father and therefore had a pleasure in disappointing her. i therefore replied that i had been there nearly the whole day and did not wish to go out any more. Never mind whether you wish it or not i wish you to go replied Miss Medea tartly. Medea how can you be so rude. As soon as the tailor had gone Miss Medea asked me if i would not like to take another run in the garden. i knew that she wished to speak to her father and therefore had a pleasure in disappointing her. i therefore replied that i had been there nearly the whole day and did not wish to go out any more. Never mind whether you wish it or not i wish you to go replied Miss Medea tartly. Medea how can you be so rude. Know then that when you were last at Madeline Hall i was sent for to draw up the will of the Honourable Miss Delmar and i then discovered that the will which had been made in favour of Lord de Versely to whom Miss Delmar had left everything was by his express desire to be altered in your favour and at the same time the secret of your birth was confided to me. You will see therefore that Lord de Versely did not neglect your interests. The Honourable Miss Delmar having had such a long innings then gave it up because she was out of breath. She reads a great deal and is therefore only a customer to the library. Ladies who are fond of reading are seldom fond of working. Good morning Miss Evans said Captain Bridgeman you come for more food for the mind i presume. Miss Evans gave a bob and turned to my mother. Have you anything new Mrs Keene. i have brought back the three volumes of Godolphin. Yes miss i have some books down to day. Mercy on me how very like. exclaimed Miss Culpepper looking at me and then at her father. Would not you like to go into the garden little boy. continued she there through the passage out of the door you ca not miss it."
     question = "Who is Miss Delmer"
 
@@ -230,11 +216,11 @@ def predict(arguments, tokenizer_, model_, device_, temperature=0.7, top_p=0.9):
             entry_finished = False
             for i in range(arguments.max_answer_length):
                 print(f"Generating word number {i} ")
-                outputs = model_(input_ids, labels=input_ids, token_type_ids=segment_ids)
+                outputs = model_(input_ids, labels=input_ids, token_type_ids=segment_ids, attention_mask=input_mask)
                 loss, logits = outputs[:2]
-                print("\n")
-                print(logits)
-                print("\n")
+                # print("\n")
+                # print(logits)
+                # print("\n")
 
                 # softmax_logits = torch.softmax(logits[0, -1], dim=0)
                 # print(softmax_logits)
@@ -252,40 +238,45 @@ def predict(arguments, tokenizer_, model_, device_, temperature=0.7, top_p=0.9):
                 # print(output_text)
                 # print("\n")
 
-                print(logits[:, -1, :])
-                print("\n")
+                # print(logits[:, -1, :])
+                # print("\n")
                 logits = logits[:, -1, :] / (temperature if temperature > 0 else 1.0)
-                print(logits)
-                print("\n")
+                # print(logits)
+                # print("\n")
                 sorted_logits, sorted_indices = torch.sort(logits, descending=True)
-                print(sorted_logits)
+                # print(sorted_logits)
                 # print(len(sorted_logits[0].item()))
-                print("\n")
-                print(sorted_indices)
-                print("\n")
+                # print("\n")
+                # print(sorted_indices)
+                # print("\n")
                 cumulative_probs = torch.cumsum(F.softmax(sorted_logits, dim=-1), dim=-1)
-                print(cumulative_probs)
+                # print(cumulative_probs)
                 # print(len(cumulative_probs[0].item()))
-                print("\n")
+                # print("\n")
                 sorted_indices_to_remove = cumulative_probs > top_p
-                print(sorted_indices_to_remove)
-                print("\n")
+                # print(sorted_indices_to_remove)
+                # print("\n")
                 sorted_indices_to_remove[..., 1:] = sorted_indices_to_remove[..., :-1].clone()
-                print(sorted_indices_to_remove)
-                print("\n")
+                # print(sorted_indices_to_remove)
+                # print("\n")
                 sorted_indices_to_remove[..., 0] = 0
-                print(sorted_indices_to_remove)
-                print("\n")
+                # print(sorted_indices_to_remove)
+                # print("\n")
 
                 indices_to_remove = sorted_indices[sorted_indices_to_remove]
-                print(indices_to_remove)
-                print("\n")
+                # print(indices_to_remove)
+                # print("\n")
                 logits[:, indices_to_remove] = filter_value
-                print(logits)
-                print("\n")
+                # print(logits)
+                # print("\n")
 
                 next_token = torch.multinomial(F.softmax(logits, dim=-1), num_samples=1)
-                generated = torch.cat((generated, next_token), dim=1)
+                print(next_token)
+                text = torch.cat((next_token, torch.tensor(tokenizer_.encode(" ")).unsqueeze(0)), dim=1)
+                text = list(text.squeeze().numpy())
+                print(tokenizer_.decode(text))
+                print("\n")
+                generated = torch.cat((generated, next_token, torch.tensor(tokenizer_.encode(" ")).unsqueeze(0)), dim=1)
 
                 if next_token in tokenizer_.encode("[EOD]"):
                     entry_finished = True
@@ -298,7 +289,7 @@ def predict(arguments, tokenizer_, model_, device_, temperature=0.7, top_p=0.9):
                     break
             if not entry_finished:
                 output_list = list(generated.squeeze().numpy())
-                output_text = f"{tokenizer_.decode(output_list)} [EOD]"
+                output_text = f"{tokenizer_.decode(output_list)}[EOD]"
                 generated_list.append(output_text)
     return generated_list
 
@@ -310,34 +301,45 @@ def load_model():
     latest_epoch = max(list_epochs)
     model_ = GPT2LMHeadModel.from_pretrained(latest_epoch)
     tokenizer_ = GPT2Tokenizer.from_pretrained(f"{CHECK_POINTS_DIR}{latest_date}")
-    return model_, tokenizer_
+    if str(latest_date) == str(date.today()):
+        latest_epoch_no = int(latest_epoch.split("_")[-1])
+    else:
+        latest_epoch_no = 0
+    logger.info(f"Loaded model from: {latest_epoch}")
+    logger.info(f"Loaded tokenizer from: {CHECK_POINTS_DIR}{latest_date}")
+    return model_, tokenizer_, latest_epoch_no
 
 
 def main():
+    logger.info("Checking application arguments ...")
     args = set_app_args_parser().parse_args()
     check_app_args(args)
-    logger.info(args)
+    logger.info(f"\nValidated arguments: {args}")
 
+    logger.info("\nSetting device ...")
     device, n_gpu = set_device(args.local_rank, args.no_cuda)
-
     random.seed(args.seed)
     np.random.seed(args.seed)
     torch.manual_seed(args.seed)
     if n_gpu > 0:
         torch.cuda.manual_seed_all(args.seed)
 
+    latest_epoch_no = 0
     if args.load_local_model:
-        model, tokenizer = load_model()
+        logger.info("\nLoading latest local model...")
+        model, tokenizer, latest_epoch_no = load_model()
     else:
+        logger.info("\nLoading model from HuggingFace...")
         model = GPT2LMHeadModel.from_pretrained("gpt2", cache_dir=MODEL_CACHE_DIR)
         tokenizer = GPT2Tokenizer.from_pretrained("gpt2", cache_dir=TOKENIZER_CACHE_DIR)
 
+    logger.info("\nAdding new special tokens to tokenizer vocabulary...")
     tokenizer.add_tokens(["[BOD]", "[SEP]", "[EOD]"])
     model.resize_token_embeddings(len(tokenizer))
     model.to(device)
 
     if args.do_train:
-        train(args, tokenizer, model, device)
+        train(args, tokenizer, model, device, latest_epoch_no)
     if args.do_predict:
         generated_list = predict(args, tokenizer, model, device)
         for prediction in generated_list:

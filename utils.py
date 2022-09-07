@@ -103,7 +103,7 @@ def set_app_args_parser():
     )
     parser.add_argument(
         "--max_answer_length",
-        default=15,
+        default=10,
         type=int,
         help="The maximum length of an answer that can be generated. This is needed because the start "
         "and end predictions are not conditioned on one another.",
@@ -285,7 +285,7 @@ def set_input_tokens(context_tokens, query_tokens, answer_tokens, is_training):
         segment_ids.append(current_segment_id)
     tokens.append("[SEP]")
     segment_ids.append(current_segment_id)
-    current_segment_id += 1
+    current_segment_id = current_segment_id + 1
 
     for token in query_tokens:
         tokens.append(token)
@@ -294,7 +294,7 @@ def set_input_tokens(context_tokens, query_tokens, answer_tokens, is_training):
     if answer_tokens:
         tokens.append("[SEP]")
         segment_ids.append(current_segment_id)
-        current_segment_id += 1
+        current_segment_id = current_segment_id + 1
         for token in answer_tokens:
             tokens.append(token)
             segment_ids.append(current_segment_id)
@@ -309,15 +309,16 @@ def set_input_tokens(context_tokens, query_tokens, answer_tokens, is_training):
     return tokens, segment_ids
 
 
-def add_padding(input_ids, input_mask, segment_ids, max_seq_length):
-    while len(input_ids) < max_seq_length:
-        input_ids.append(0)
-        input_mask.append(0)
-        segment_ids.append(0)
+def add_padding(input_ids, input_mask, segment_ids, max_seq_length, is_training):
+    if is_training:
+        while len(input_ids) < max_seq_length:
+            input_ids.append(0)
+            input_mask.append(0)
+            segment_ids.append(0)
 
-    assert len(input_ids) == max_seq_length
-    assert len(input_mask) == max_seq_length
-    assert len(segment_ids) == max_seq_length
+        assert len(input_ids) == max_seq_length
+        assert len(input_mask) == max_seq_length
+        assert len(segment_ids) == max_seq_length
 
     return input_ids, input_mask, segment_ids
 
@@ -337,8 +338,7 @@ def convert_data_to_features(dataset, tokenizer, max_seq_length, max_query_lengt
         # tokens are attended to.
         input_mask = [1] * len(input_ids)
         # Zero-pad up to the sequence length.
-        input_ids, input_mask, segment_ids = add_padding(input_ids, input_mask, segment_ids, max_seq_length)
-
+        input_ids, input_mask, segment_ids = add_padding(input_ids, input_mask, segment_ids, max_seq_length, is_training)
         result.append(
             NarrativeQAInputFeatures(
                 input_ids=input_ids,
