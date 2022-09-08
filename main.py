@@ -12,7 +12,8 @@ from config import (
     MODEL_CACHE_DIR,
     CHECK_POINTS_DIR,
     MODEL_CONFIG_NAME,
-    MODEL_WEIGHTS_NAME
+    MODEL_WEIGHTS_NAME,
+    EVALUATION_CACHE_DIR,
 )
 
 from transformers import GPT2Tokenizer, GPT2LMHeadModel, get_linear_schedule_with_warmup
@@ -26,6 +27,7 @@ import random
 import numpy as np
 import torch
 from tqdm import tqdm, trange
+import evaluate
 
 import logging
 logging.basicConfig(
@@ -126,7 +128,7 @@ def get_data(data_file, arguments, tokenizer_, is_training):
             )
         true_answers = []
         for data in dataset:
-            true_answers.append(data.answer_text)
+            true_answers.append([data.answer_text])
         return data_tensors, true_answers
 
 
@@ -278,8 +280,23 @@ def predict(arguments, tokenizer_, model_, device_, temperature=0.9, top_p=0.8):
             answer = tokenizer_.decode(list(answer.cpu().squeeze().numpy()))
             answer = answer[:-6] if answer.endswith("[EOD]") else answer
             generated_answers.append(answer.strip())
-            break
     return generated_list, generated_answers, true_answers
+
+
+def measure_evaluation(predictions, references):
+    bleu = evaluate.load("bleu", cache_dir=EVALUATION_CACHE_DIR)
+    meteor = evaluate.load("meteor", cache_dir=EVALUATION_CACHE_DIR)
+    rouge = evaluate.load("rouge", cache_dir=EVALUATION_CACHE_DIR)
+
+    result_bleu_1 = bleu.compute(predictions=predictions, references=references, max_order=1)
+    result_bleu_4 = bleu.compute(predictions=predictions, references=references, max_order=4)
+    result_meteor = meteor.compute(predictions=predictions, references=references)
+    result_rouge = rouge.compute(predictions=predictions, references=references)
+    print("\n")
+    print(f"bleu-1: {result_bleu_1}")
+    print(f"bleu-4: {result_bleu_4}")
+    print(f"meteor: {result_meteor}")
+    print(f"rouge: {result_rouge}")
 
 
 def load_model():
@@ -330,11 +347,16 @@ def main():
         train(args, tokenizer, model, device, latest_epoch_no)
     if args.do_predict:
         generated_list, generated_answers, true_answers = predict(args, tokenizer, model, device)
-        for idx in range(len(generated_list)):
-            print("\n")
-            logger.info(generated_list[idx])
-            logger.info(generated_answers[idx])
-            logger.info(true_answers[idx])
+        print("\n")
+        print(generated_answers)
+        print("\n")
+        print(true_answers)
+        measure_evaluation(generated_answers, true_answers)
+        # for idx in range(len(generated_list)):
+        #     print("\n")
+        #     logger.info(generated_list[idx])
+        #     logger.info(generated_answers[idx])
+        #     logger.info(true_answers[idx])
 
 
 if __name__ == '__main__':
