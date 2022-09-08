@@ -124,7 +124,10 @@ def get_data(data_file, arguments, tokenizer_, is_training):
                     torch.tensor([feature.segment_ids], dtype=torch.long),
                 ]
             )
-        return data_tensors
+        true_answers = []
+        for data in dataset:
+            true_answers.append(data.answer_text)
+        return data_tensors, true_answers
 
 
 def save_model(tokenizer_, model_, epoch):
@@ -214,7 +217,7 @@ def train(arguments, tokenizer_, model_, device_, latest_epoch_no_):
 def predict(arguments, tokenizer_, model_, device_, temperature=0.9, top_p=0.8):
     logger.info("**** START PREDICTION *****")
     logger.info("Getting prediction data...")
-    data_tensors = get_data(
+    data_tensors, true_answers = get_data(
         data_file=arguments.predict_file,
         arguments=arguments,
         tokenizer_=tokenizer_,
@@ -222,7 +225,9 @@ def predict(arguments, tokenizer_, model_, device_, temperature=0.9, top_p=0.8):
     )
     model_.eval()
     generated_list = []
+    generated_answers = []
     filter_value = -float("Inf")
+
     additional_sequence_ids = torch.tensor([[2]])
     additional_sequence_ids = additional_sequence_ids.to(device_)
     additional_input_masks = torch.tensor([[1]])
@@ -237,6 +242,7 @@ def predict(arguments, tokenizer_, model_, device_, temperature=0.9, top_p=0.8):
             segment_ids = segment_ids.to(device_)
 
             entry_finished = False
+            answer = None
             for i in range(arguments.max_answer_length):
                 outputs = model_(input_ids, labels=input_ids, token_type_ids=segment_ids, attention_mask=input_mask)
                 loss, logits = outputs[:2]
@@ -257,6 +263,7 @@ def predict(arguments, tokenizer_, model_, device_, temperature=0.9, top_p=0.8):
 
                 if next_token in tokenizer_.encode("[EOD]"):
                     entry_finished = True
+                answer = torch.cat((answer, next_token), dim=1) if answer != None else next_token
 
                 if entry_finished:
                     output_list = list(input_ids.cpu().squeeze().numpy())
@@ -267,8 +274,9 @@ def predict(arguments, tokenizer_, model_, device_, temperature=0.9, top_p=0.8):
                 output_list = list(input_ids.cpu().squeeze().numpy())
                 output_text = f"{tokenizer_.decode(output_list)} [EOD]"
                 generated_list.append(output_text)
+            generated_answers.append(tokenizer_.decode(list(answer.cpu().squeeze().numpy())))
             # break
-    return generated_list
+    return generated_list, generated_answers, true_answers
 
 
 def load_model():
@@ -318,10 +326,12 @@ def main():
     if args.do_train:
         train(args, tokenizer, model, device, latest_epoch_no)
     if args.do_predict:
-        generated_list = predict(args, tokenizer, model, device)
-        for prediction in generated_list:
+        generated_list, generated_answers, true_answers = predict(args, tokenizer, model, device)
+        for idx in range(len(generated_list)):
             print("\n")
-            logger.info(prediction)
+            logger.info(generated_list[idx])
+            logger.info(generated_answers[idx])
+            logger.info(true_answers[idx])
 
 
 if __name__ == '__main__':

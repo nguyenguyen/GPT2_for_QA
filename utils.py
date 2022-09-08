@@ -205,7 +205,7 @@ def read_dataset(data_file, is_training):
                 question_text = qa["question"]
                 if not question_text.endswith("?"):
                     question_text = f"{question_text}?"
-                answer_text = qa["answers"] if is_training else None
+                answer_text = qa["answers"]
                 result.append(
                     NarrativeQADataset(
                         qa_id=qa_id,
