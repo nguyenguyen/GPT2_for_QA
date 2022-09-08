@@ -212,8 +212,6 @@ def predict(arguments, tokenizer_, model_, device_, temperature=0.9, top_p=0.8):
     additional_sequence_ids = additional_sequence_ids.to(device_)
     additional_input_masks = torch.tensor([[1]])
     additional_input_masks = additional_input_masks.to(device_)
-    # space_tensor = torch.tensor(tokenizer_.encode(" ")).unsqueeze(0)
-    # space_tensor = space_tensor.to(device_)
 
     with torch.no_grad():
         for input_ids, input_mask, segment_ids in tqdm(
@@ -244,7 +242,6 @@ def predict(arguments, tokenizer_, model_, device_, temperature=0.9, top_p=0.8):
                 logits[:, indices_to_remove] = filter_value
 
                 next_token = torch.multinomial(F.softmax(logits, dim=-1), num_samples=1)
-                # input_ids = torch.cat((input_ids, next_token, space_tensor), dim=1)
                 input_ids = torch.cat((input_ids, next_token), dim=1)
                 segment_ids = torch.cat((segment_ids, additional_sequence_ids), dim=1)
                 input_mask = torch.cat((input_mask, additional_input_masks), dim=1)
@@ -260,7 +257,7 @@ def predict(arguments, tokenizer_, model_, device_, temperature=0.9, top_p=0.8):
                     break
             if not entry_finished:
                 output_list = list(input_ids.cpu().squeeze().numpy())
-                output_text = f"{tokenizer_.decode(output_list)}[EOD]"
+                output_text = f"{tokenizer_.decode(output_list)} [EOD]"
                 generated_list.append(output_text)
     return generated_list
 
