@@ -1,5 +1,6 @@
 TOKENIZER_CACHE_DIR = "cache/tokenizer/"
 MODEL_CACHE_DIR = "cache/model/"
+EVALUATION_CACHE_DIR = "cache/evaluation/"
 
 CHECK_POINTS_DIR = "check_points/"
 

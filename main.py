@@ -274,8 +274,11 @@ def predict(arguments, tokenizer_, model_, device_, temperature=0.9, top_p=0.8):
                 output_list = list(input_ids.cpu().squeeze().numpy())
                 output_text = f"{tokenizer_.decode(output_list)} [EOD]"
                 generated_list.append(output_text)
-            generated_answers.append(tokenizer_.decode(list(answer.cpu().squeeze().numpy())))
-            # break
+
+            answer = tokenizer_.decode(list(answer.cpu().squeeze().numpy()))
+            answer = answer[:-6] if answer.endswith("[EOD]") else answer
+            generated_answers.append(answer.strip())
+            break
     return generated_list, generated_answers, true_answers
 
 
