@@ -208,6 +208,8 @@ def predict(arguments, tokenizer_, model_, device_, temperature=0.9, top_p=0.8):
     model_.eval()
     generated_num = 0
     generated_list = []
+    additional_sequence_ids = torch.tensor([[2, 2]])
+    additional_input_masks = torch.tensor([[1, 1]])
     space_tensor = torch.tensor(tokenizer_.encode(" ")).unsqueeze(0)
     space_tensor = space_tensor.to(device_)
 
@@ -237,8 +239,8 @@ def predict(arguments, tokenizer_, model_, device_, temperature=0.9, top_p=0.8):
 
                 next_token = torch.multinomial(F.softmax(logits, dim=-1), num_samples=1)
                 input_ids = torch.cat((input_ids, next_token, space_tensor), dim=1)
-                segment_ids = torch.cat((segment_ids, torch.tensor([[2, 2]])), dim=-1)
-                input_mask = torch.cat((input_mask, torch.tensor([[1, 1]])), dim=-1)
+                segment_ids = torch.cat((segment_ids, additional_sequence_ids), dim=1)
+                input_mask = torch.cat((input_mask, additional_input_masks), dim=1)
 
                 if next_token in tokenizer_.encode("[EOD]"):
                     entry_finished = True
