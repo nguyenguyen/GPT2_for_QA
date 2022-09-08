@@ -17,14 +17,6 @@ WHITE_SPACE_CODES = [" ", "\t", "\r", "\n", ""]
 def set_app_args_parser():
     parser = argparse.ArgumentParser()
 
-    # parser.add_argument(
-    #     "--output_dir",
-    #     default=None,
-    #     type=str,
-    #     # required=True,
-    #     help="The output directory where the model checkpoints and predictions will be written.",
-    # )
-
     parser.add_argument(
         "--train_file",
         default=None,
@@ -59,7 +51,7 @@ def set_app_args_parser():
     )
     parser.add_argument(
         "--train_batch_size",
-        default=8,
+        default=4,
         type=int,
         help="Total batch size for training.",
     )
@@ -83,7 +75,7 @@ def set_app_args_parser():
     )
     parser.add_argument(
         "--num_train_epochs",
-        default=3.0,
+        default=100,
         type=float,
         help="Total number of training epochs to perform.",
     )
@@ -103,7 +95,7 @@ def set_app_args_parser():
     )
     parser.add_argument(
         "--max_answer_length",
-        default=10,
+        default=3,
         type=int,
         help="The maximum length of an answer that can be generated. This is needed because the start "
         "and end predictions are not conditioned on one another.",
@@ -125,11 +117,6 @@ def set_app_args_parser():
         type=int,
         default=1,
         help="Number of updates steps to accumulate before performing a backward/update pass.",
-    )
-    parser.add_argument(
-        "--do_lower_case",
-        action="store_true",
-        help="Whether to lower case the input text. True for uncased models, False for cased models.",
     )
     parser.add_argument(
         "--local_rank",
@@ -165,22 +152,11 @@ def check_app_args(arguments):
         raise ValueError("At least one of `do_train` or `do_predict` must be True.")
     if arguments.do_train and not arguments.train_file:
         raise ValueError("If `do_train` is True, then `train_file` must be specified.")
-    # if arguments.do_predict and not arguments.predict_file:
-    #     raise ValueError("If `do_predict` is True, then `predict_file` must be specified.")
+    if arguments.do_predict and not arguments.predict_file:
+        raise ValueError("If `do_predict` is True, then `predict_file` must be specified.")
     if arguments.load_local_model:
         if not (os.path.exists(CHECK_POINTS_DIR) or os.listdir(CHECK_POINTS_DIR)):
             raise ValueError("There is no model from local.")
-    #
-    # if not arguments.output_dir:
-    #     raise ValueError("Please specify value of `output_dir`.")
-    # if (
-    #     os.path.exists(arguments.output_dir)
-    #     and os.listdir(arguments.output_dir)
-    #     and arguments.do_train
-    # ):
-    #     raise ValueError("Output directory () already exists and is not empty.")
-    # if not os.path.exists(arguments.output_dir):
-    #     os.makedirs(arguments.output_dir)
 
 
 def set_device(local_rank, is_no_cuda):
@@ -214,14 +190,9 @@ def pack_tensor(new_tensor, packed_tensor, max_seq_len):
         return packed_tensor, True, None
 
 
-def read_dataset(data_file, is_training, is_predict, context_predict=None, question_predict=None):
-    if not is_predict:
-        with open(data_file, "r", encoding="utf-8") as reader:
-            input_data = json.load(reader)["data"]
-    else:
-        input_data = json.loads(
-            '[{"paragraphs": [{"context":"' + context_predict + '","qas": [{"question":"' + question_predict + '","id":""}]}]}]'
-        )
+def read_dataset(data_file, is_training):
+    with open(data_file, "r", encoding="utf-8") as reader:
+        input_data = json.load(reader)["data"]
 
     result = []
     for entry in input_data:
@@ -353,23 +324,27 @@ def convert_data_to_features(dataset, tokenizer, max_seq_length, max_query_lengt
     return result
 
 
-def get_tensor_dataset(features):
-    all_input_ids = torch.tensor(
-        [f.input_ids for f in features], dtype=torch.long
-    )
-    all_input_mask = torch.tensor(
-        [f.input_mask for f in features], dtype=torch.long
-    )
-    all_segment_ids = torch.tensor(
-        [f.segment_ids for f in features], dtype=torch.long
-    )
+def get_tensor_dataset(features, is_training):
+    if is_training:
+        all_input_ids = torch.tensor(
+            [f.input_ids for f in features], dtype=torch.long
+        )
+        all_input_mask = torch.tensor(
+            [f.input_mask for f in features], dtype=torch.long
+        )
+        all_segment_ids = torch.tensor(
+            [f.segment_ids for f in features], dtype=torch.long
+        )
 
-    return TensorDataset(
-        all_input_ids,
-        all_input_mask,
-        all_segment_ids,
-    )
+        return TensorDataset(
+            all_input_ids,
+            all_input_mask,
+            all_segment_ids,
+        )
+    else:
+        return TensorDataset(
+            torch.tensor([features.input_ids], dtype=torch.long),
+            torch.tensor([features.input_mask], dtype=torch.long),
+            torch.tensor([features.segment_ids], dtype=torch.long),
+        )
 
-
-def set_predict_inputs(input_ids, input_masks, sequence_ids):
-    return generated_ids, generated

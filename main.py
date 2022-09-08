@@ -75,23 +75,20 @@ def set_optimizer(model_, learning_rate, optimizer_warmup_steps, warmup_proporti
     return optimizer, scheduler
 
 
-def pack_tensor(new_tensor, packed_tensor, max_seq_len):
-    if packed_tensor is None:
-        return new_tensor, True, None
-    if new_tensor.size()[1] + packed_tensor.size()[1] > max_seq_len:
-        return packed_tensor, False, new_tensor
-    else:
-        packed_tensor = torch.cat([new_tensor, packed_tensor[:, 1:]], dim=1)
-        return packed_tensor, True, None
+# def pack_tensor(new_tensor, packed_tensor, max_seq_len):
+#     if packed_tensor is None:
+#         return new_tensor, True, None
+#     if new_tensor.size()[1] + packed_tensor.size()[1] > max_seq_len:
+#         return packed_tensor, False, new_tensor
+#     else:
+#         packed_tensor = torch.cat([new_tensor, packed_tensor[:, 1:]], dim=1)
+#         return packed_tensor, True, None
 
 
-def get_data(data_file, arguments, tokenizer_, is_training, is_predict, context_predict=None, question_predict=None):
+def get_data(data_file, arguments, tokenizer_, is_training):
     dataset = read_dataset(
         data_file=data_file,
         is_training=is_training,
-        is_predict=is_predict,
-        context_predict=context_predict,
-        question_predict=question_predict
     )
     features = convert_data_to_features(
         dataset=dataset,
@@ -100,21 +97,34 @@ def get_data(data_file, arguments, tokenizer_, is_training, is_predict, context_
         max_query_length=arguments.max_query_length,
         is_training=is_training,
     )
-    tensor_data = get_tensor_dataset(features)
-    sampler = RandomSampler(tensor_data) if is_training else SequentialSampler(tensor_data)
-    batch_size = arguments.train_batch_size if is_training else arguments.predict_batch_size
-    data_loader = DataLoader(
-        tensor_data, sampler=sampler, batch_size=batch_size
-    )
-    n_train_optimization_steps = (
-            int(
-                len(dataset)
-                / batch_size
-                / arguments.gradient_accumulation_steps
+
+    if is_training:
+        tensor_data = get_tensor_dataset(features, is_training)
+        sampler = RandomSampler(tensor_data)
+        batch_size = arguments.train_batch_size
+        data_loader = DataLoader(
+            tensor_data, sampler=sampler, batch_size=batch_size
+        )
+        n_train_optimization_steps = (
+                int(
+                    len(dataset)
+                    / batch_size
+                    / arguments.gradient_accumulation_steps
+                )
+                * arguments.num_train_epochs
+        ) if is_training else None
+        return data_loader, n_train_optimization_steps
+    else:
+        data_tensors = []
+        for feature in tqdm(features):
+            data_tensors.append(
+                [
+                    torch.tensor([feature.input_ids], dtype=torch.long),
+                    torch.tensor([feature.input_mask], dtype=torch.long),
+                    torch.tensor([feature.segment_ids], dtype=torch.long),
+                ]
             )
-            * arguments.num_train_epochs
-    ) if is_training else None
-    return data_loader, n_train_optimization_steps
+        return data_tensors
 
 
 def save_model(tokenizer_, model_, epoch):
@@ -140,7 +150,6 @@ def train(arguments, tokenizer_, model_, device_, latest_epoch_no_):
         arguments=arguments,
         tokenizer_=tokenizer_,
         is_training=True,
-        is_predict=False,
     )
     logger.info("Setting model and optimizer...")
     model_.train()
@@ -188,49 +197,49 @@ def train(arguments, tokenizer_, model_, device_, latest_epoch_no_):
     model_.to(device_)
 
 
+# def get_additional_info(input_ids, device_):
+#     n_dim = list(input_ids.shape)[0]
+#     additional_sequence_ids = []
+#     additional_input_masks = []
+#     for i in range(n_dim):
+#         additional_sequence_ids.append([2])
+#         additional_input_masks.append([1])
+#     additional_sequence_ids = torch.tensor(additional_sequence_ids)
+#     additional_sequence_ids = additional_sequence_ids.to(device_)
+#     additional_input_masks = torch.tensor(additional_input_masks)
+#     additional_input_masks = additional_input_masks.to(device_)
+#     return [additional_sequence_ids, additional_input_masks]
+
+
 def predict(arguments, tokenizer_, model_, device_, temperature=0.9, top_p=0.8):
-    context = "At the period in which i commence this history there resided in this mansion an elderly spinster of rank named the Honourable Miss Delmar sister of the late Lord de Versely and aunt to the present earl and an Honourable Captain Delmar who was the second son of the deceased nobleman. This property belonged to the Honourable Miss Delmar and was at her entire disposal upon her decease. At the period in which i commence this history there resided in this mansion an elderly spinster of rank named the Honourable Miss Delmar sister of the late Lord de Versely and aunt to the present earl and an Honourable Captain Delmar who was the second son of the deceased nobleman. This property belonged to the Honourable Miss Delmar and was at her entire disposal upon her decease. At the period in which i commence this history there resided in this mansion an elderly spinster of rank named the Honourable Miss Delmar sister of the late Lord de Versely and aunt to the present earl and an Honourable Captain Delmar who was the second son of the deceased nobleman. This property belonged to the Honourable Miss Delmar and was at her entire disposal upon her decease. As soon as the tailor had gone Miss Medea asked me if i would not like to take another run in the garden. i knew that she wished to speak to her father and therefore had a pleasure in disappointing her. i therefore replied that i had been there nearly the whole day and did not wish to go out any more. Never mind whether you wish it or not i wish you to go replied Miss Medea tartly. Medea how can you be so rude. As soon as the tailor had gone Miss Medea asked me if i would not like to take another run in the garden. i knew that she wished to speak to her father and therefore had a pleasure in disappointing her. i therefore replied that i had been there nearly the whole day and did not wish to go out any more. Never mind whether you wish it or not i wish you to go replied Miss Medea tartly. Medea how can you be so rude. As soon as the tailor had gone Miss Medea asked me if i would not like to take another run in the garden. i knew that she wished to speak to her father and therefore had a pleasure in disappointing her. i therefore replied that i had been there nearly the whole day and did not wish to go out any more. Never mind whether you wish it or not i wish you to go replied Miss Medea tartly. Medea how can you be so rude. Know then that when you were last at Madeline Hall i was sent for to draw up the will of the Honourable Miss Delmar and i then discovered that the will which had been made in favour of Lord de Versely to whom Miss Delmar had left everything was by his express desire to be altered in your favour and at the same time the secret of your birth was confided to me. You will see therefore that Lord de Versely did not neglect your interests. The Honourable Miss Delmar having had such a long innings then gave it up because she was out of breath. She reads a great deal and is therefore only a customer to the library. Ladies who are fond of reading are seldom fond of working. Good morning Miss Evans said Captain Bridgeman you come for more food for the mind i presume. Miss Evans gave a bob and turned to my mother. Have you anything new Mrs Keene. i have brought back the three volumes of Godolphin. Yes miss i have some books down to day. Mercy on me how very like. exclaimed Miss Culpepper looking at me and then at her father. Would not you like to go into the garden little boy. continued she there through the passage out of the door you ca not miss it."
-    question = "Who is Miss Delmer"
-
-    # context = "amorphus. philautia. asotus. moria. hedon. cos. anaides. gelaia. morphides. prosaites. morus. cupid. mutes. phronesis thauma time. scene gargaphie. induction. the stage. after the second sounding. enter three of the children struggling. child. Pray you away why fellows. Gods so what do you mean. child. Marry that you shall not speak the prologue sir. child. ana. Good play but 'tis too rough and boisterous. amo. i will second it with a stroke easier wherein i will prove his language. a charge. ana. This is filthy and grave now. hed. o 'tis cool and wary play. We must not disgrace our own camerade too much. amo. Jonson never again produced so fresh and lovable a feminine personage as Rachel although in other respects The Case is Altered is not a conspicuous play and save for the satirising of Antony Munday in the person of Antonio Balladino and Gabriel Harvey as well is perhaps the least characteristic of the comedies of Jonson. Every Man in His Humour probably first acted late in the summer of and at the Curtain is commonly regarded as an epoch making play and this view is not unjustified. The play is admirably written and each character is vividly conceived and with a firm touch based on observation of the men of the London of the day. Jonson was neither in this his first great comedy nor in any other play that he wrote a supine classicist urging that English drama return to a slavish adherence to classical conditions. All this points to an association with Henslowe of some duration as no mere tyro would be thus paid in advance upon mere promise. From allusions in Dekker's play Satiromastix it appears that Jonson like Shakespeare began life as an actor and that he ambled in a leather pitch by a play wagon taking at one time the part of Hieronimo in Kyd's famous play The Spanish Tragedy. By the beginning of Jonson though still in needy circumstances had begun to receive recognition. child. Tut fear not child this will never distaste a true sense be not out and good enough. i would thou hadst some sugar candied to sweeten thy mouth. the third sounding. prologue. If gracious silence sweet attention Quick sight and quicker apprehension The lights of judgment's throne shine any where Our doubtful author hopes this is their sphere And therefore opens he himself to those To other weaker beams his labours close As loth to prostitute their virgin strain To every vulgar and adulterate brain. i thought at first he would have plaid the ignorant critic with everything along as he had gone i expected some such device. child. o you shall see me do that rarely lend me thy cloak. child. Soft sir you will speak my prologue in it. child. No would i might never stir then. child. Lend it him lend it him. child. Well you have sworn. gives him the cloak. child. i have. are. You tell us wonders Crites. cri. This is nothing. There stands a neophite glazing of his face Pruning his clothes perfuming of his hair Against his idol enters and repeats Like an unperfect prologue at third music His part of speeches and confederate jests In passion to himself. And i prefer another now far before him a million at least. pha. Who might that be guardian. mor. Marry fair charge Anaides. pha. Anaides. you talk'd of a tune Philautia there's one speaks in a key like the opening of some justice's gate or a postboy's horn as if his voice feared an arrest for some ill words it should give and were loth to come forth. phi. Ay and he has a very imperfect face. pha. Volpone was laid as to scene in Venice. Whether because of the success of Eastward Hoe or for other reasons the other three comedies declare in the words of the prologue to The Alchemist. Our scene is London 'cause we would make known No country's mirth is better than our own."
-    # question = "Who normally delivers the opening prologue in the play"
-
     logger.info("**** START PREDICTION *****")
-    predict_dataloader, _ = get_data(
-        data_file="",
+    logger.info("Getting prediction data...")
+    data_tensors = get_data(
+        data_file=arguments.predict_file,
         arguments=arguments,
         tokenizer_=tokenizer_,
         is_training=False,
-        is_predict=True,
-        context_predict=context,
-        question_predict=question
     )
     model_.eval()
-    generated_num = 0
     generated_list = []
+    filter_value = -float("Inf")
     additional_sequence_ids = torch.tensor([[2]])
     additional_sequence_ids = additional_sequence_ids.to(device_)
     additional_input_masks = torch.tensor([[1]])
     additional_input_masks = additional_input_masks.to(device_)
 
+    logger.info("Generating prediction ...")
     with torch.no_grad():
-        for input_ids, input_mask, segment_ids in tqdm(
-                predict_dataloader, desc="Evaluating", disable=False
-        ):
+        for data in data_tensors:
+            input_ids, input_mask, segment_ids = data
             input_ids = input_ids.to(device_)
             input_mask = input_mask.to(device_)
             segment_ids = segment_ids.to(device_)
-            filter_value = -float("Inf")
+
             entry_finished = False
             for i in range(arguments.max_answer_length):
-                print(f"Generating word number {i} ")
                 outputs = model_(input_ids, labels=input_ids, token_type_ids=segment_ids, attention_mask=input_mask)
                 loss, logits = outputs[:2]
-                print(logits)
-                print(input_ids)
-                print(input_mask)
-                print(segment_ids)
-                print("\n")
                 logits = logits[:, -1, :] / (temperature if temperature > 0 else 1.0)
                 sorted_logits, sorted_indices = torch.sort(logits, descending=True)
                 cumulative_probs = torch.cumsum(F.softmax(sorted_logits, dim=-1), dim=-1)
@@ -250,7 +259,6 @@ def predict(arguments, tokenizer_, model_, device_, temperature=0.9, top_p=0.8):
                     entry_finished = True
 
                 if entry_finished:
-                    generated_num = generated_num + 1
                     output_list = list(input_ids.cpu().squeeze().numpy())
                     output_text = tokenizer_.decode(output_list)
                     generated_list.append(output_text)
@@ -259,6 +267,7 @@ def predict(arguments, tokenizer_, model_, device_, temperature=0.9, top_p=0.8):
                 output_list = list(input_ids.cpu().squeeze().numpy())
                 output_text = f"{tokenizer_.decode(output_list)} [EOD]"
                 generated_list.append(output_text)
+            # break
     return generated_list
 
 
@@ -311,6 +320,7 @@ def main():
     if args.do_predict:
         generated_list = predict(args, tokenizer, model, device)
         for prediction in generated_list:
+            print("\n")
             logger.info(prediction)
 
 
