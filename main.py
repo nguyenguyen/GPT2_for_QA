@@ -208,12 +208,12 @@ def predict(arguments, tokenizer_, model_, device_, temperature=0.9, top_p=0.8):
     model_.eval()
     generated_num = 0
     generated_list = []
-    additional_sequence_ids = torch.tensor([[2, 2]])
+    additional_sequence_ids = torch.tensor([[2]])
     additional_sequence_ids = additional_sequence_ids.to(device_)
-    additional_input_masks = torch.tensor([[1, 1]])
+    additional_input_masks = torch.tensor([[1]])
     additional_input_masks = additional_input_masks.to(device_)
-    space_tensor = torch.tensor(tokenizer_.encode(" ")).unsqueeze(0)
-    space_tensor = space_tensor.to(device_)
+    # space_tensor = torch.tensor(tokenizer_.encode(" ")).unsqueeze(0)
+    # space_tensor = space_tensor.to(device_)
 
     with torch.no_grad():
         for input_ids, input_mask, segment_ids in tqdm(
@@ -229,6 +229,10 @@ def predict(arguments, tokenizer_, model_, device_, temperature=0.9, top_p=0.8):
                 outputs = model_(input_ids, labels=input_ids, token_type_ids=segment_ids, attention_mask=input_mask)
                 loss, logits = outputs[:2]
                 print(logits)
+                print(input_ids)
+                print(input_mask)
+                print(segment_ids)
+                print("\n")
                 logits = logits[:, -1, :] / (temperature if temperature > 0 else 1.0)
                 sorted_logits, sorted_indices = torch.sort(logits, descending=True)
                 cumulative_probs = torch.cumsum(F.softmax(sorted_logits, dim=-1), dim=-1)
@@ -240,7 +244,8 @@ def predict(arguments, tokenizer_, model_, device_, temperature=0.9, top_p=0.8):
                 logits[:, indices_to_remove] = filter_value
 
                 next_token = torch.multinomial(F.softmax(logits, dim=-1), num_samples=1)
-                input_ids = torch.cat((input_ids, next_token, space_tensor), dim=1)
+                # input_ids = torch.cat((input_ids, next_token, space_tensor), dim=1)
+                input_ids = torch.cat((input_ids, next_token), dim=1)
                 segment_ids = torch.cat((segment_ids, additional_sequence_ids), dim=1)
                 input_mask = torch.cat((input_mask, additional_input_masks), dim=1)
 
