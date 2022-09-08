@@ -209,7 +209,9 @@ def predict(arguments, tokenizer_, model_, device_, temperature=0.9, top_p=0.8):
     generated_num = 0
     generated_list = []
     additional_sequence_ids = torch.tensor([[2, 2]])
+    additional_sequence_ids = additional_sequence_ids.to(device_)
     additional_input_masks = torch.tensor([[1, 1]])
+    additional_input_masks = additional_input_masks.to(device_)
     space_tensor = torch.tensor(tokenizer_.encode(" ")).unsqueeze(0)
     space_tensor = space_tensor.to(device_)
 
