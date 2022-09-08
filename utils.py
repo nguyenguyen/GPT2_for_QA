@@ -369,3 +369,7 @@ def get_tensor_dataset(features):
         all_input_mask,
         all_segment_ids,
     )
+
+
+def set_predict_inputs(input_ids, input_masks, sequence_ids):
+    return generated_ids, generated
