@@ -238,6 +238,7 @@ def read_dataset(data_file, is_training):
                     )
                 )
         break
+        logger.info(f"Data Length: {len(result)}")
     return result
 
 
