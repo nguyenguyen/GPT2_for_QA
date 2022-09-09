@@ -216,7 +216,7 @@ def train(arguments, tokenizer_, model_, device_, latest_epoch_no_):
 #     return [additional_sequence_ids, additional_input_masks]
 
 
-def predict(arguments, tokenizer_, model_, device_, temperature=0.9, top_p=0.8):
+def predict(arguments, tokenizer_, model_, device_, temperature=1, top_p=0.9):
     logger.info("**** START PREDICTION *****")
     logger.info("Getting prediction data...")
     data_tensors, true_answers = get_data(
@@ -299,19 +299,24 @@ def measure_evaluation(predictions, references):
     print(f"rouge: {result_rouge}")
 
 
-def load_model():
-    list_dates = [x[1] for x in os.walk(CHECK_POINTS_DIR)][0]
-    latest_date = max(list_dates)
-    list_epochs = [x[0] for x in os.walk(f"{CHECK_POINTS_DIR}{latest_date}")]
-    latest_epoch = max(list_epochs)
-    model_ = GPT2LMHeadModel.from_pretrained(latest_epoch)
-    tokenizer_ = GPT2Tokenizer.from_pretrained(f"{CHECK_POINTS_DIR}{latest_date}")
-    if str(latest_date) == str(date.today()):
-        latest_epoch_no = int(latest_epoch.split("_")[-1])
+def load_model(arguments):
+    if arguments.local_model_folder is not None:
+        model_ = GPT2LMHeadModel.from_pretrained(arguments.local_model_folder)
+        tokenizer_ = GPT2Tokenizer.from_pretrained(arguments.local_tokenizer_folder)
+        latest_epoch_no = arguments.latest_epoch_no
     else:
-        latest_epoch_no = 0
-    logger.info(f"Loaded model from: {latest_epoch}")
-    logger.info(f"Loaded tokenizer from: {CHECK_POINTS_DIR}{latest_date}")
+        list_dates = [x[1] for x in os.walk(CHECK_POINTS_DIR)][0]
+        latest_date = max(list_dates)
+        list_epochs = [x[0] for x in os.walk(f"{CHECK_POINTS_DIR}{latest_date}")]
+        latest_epoch = max(list_epochs)
+        model_ = GPT2LMHeadModel.from_pretrained(latest_epoch)
+        tokenizer_ = GPT2Tokenizer.from_pretrained(f"{CHECK_POINTS_DIR}{latest_date}")
+        if str(latest_date) == str(date.today()):
+            latest_epoch_no = int(latest_epoch.split("_")[-1])
+        else:
+            latest_epoch_no = 0
+        logger.info(f"Loaded model from: {latest_epoch}")
+        logger.info(f"Loaded tokenizer from: {CHECK_POINTS_DIR}{latest_date}")
     return model_, tokenizer_, latest_epoch_no
 
 
@@ -332,7 +337,7 @@ def main():
     latest_epoch_no = 0
     if args.load_local_model:
         logger.info("\nLoading latest local model...")
-        model, tokenizer, latest_epoch_no = load_model()
+        model, tokenizer, latest_epoch_no = load_model(args)
     else:
         logger.info("\nLoading model from HuggingFace...")
         model = GPT2LMHeadModel.from_pretrained("gpt2", cache_dir=MODEL_CACHE_DIR)

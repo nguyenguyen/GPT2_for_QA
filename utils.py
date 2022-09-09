@@ -143,6 +143,24 @@ def set_app_args_parser():
         action="store_true",
         help="If yes, load model from local.",
     )
+    parser.add_argument(
+        "--local_model_folder",
+        default=None,
+        type=str,
+        help="Folder path stores model"
+    )
+    parser.add_argument(
+        "--local_tokenizer_folder",
+        default=None,
+        type=str,
+        help="Folder path stores tokenizer"
+    )
+    parser.add_argument(
+        "--latest_epoch_no",
+        default=0,
+        type=int,
+        help="Latest epoch number of local model"
+    )
 
     return parser
 
@@ -157,6 +175,10 @@ def check_app_args(arguments):
     if arguments.load_local_model:
         if not (os.path.exists(CHECK_POINTS_DIR) or os.listdir(CHECK_POINTS_DIR)):
             raise ValueError("There is no model from local.")
+        if arguments.local_model_folder and not arguments.local_tokenizer_folder:
+            raise ValueError("Please specify value for argument `local_tokenizer_folder`")
+        if not arguments.local_model_folder and arguments.local_tokenizer_folder:
+            raise ValueError("Please specify value for argument `local_model_folder`")
 
 
 def set_device(local_rank, is_no_cuda):
