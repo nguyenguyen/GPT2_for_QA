@@ -237,7 +237,7 @@ def read_dataset(data_file, is_training):
                         context_tokens=context_tokens,
                     )
                 )
-        break
+        # break
         logger.info(f"Data Length: {len(result)}")
     return result
 
