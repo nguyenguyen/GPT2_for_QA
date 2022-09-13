@@ -253,6 +253,7 @@ def tokenize_data(data, tokenizer, max_seq_length, max_query_length, max_answer_
         # The -5 accounts for [CLS], [SEP], [SEP], [SEP] and [SEP]
         max_context_length = max_seq_length - len(query_tokens) - len(answer_tokens) - 5
     else:
+        answer_tokens = None
         max_context_length = max_seq_length - len(query_tokens) - max_answer_length - 5
 
     context_tokens = tokenizer.tokenize(data.context_text)
