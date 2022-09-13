@@ -39,7 +39,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-def set_optimizer(model_, learning_rate, optimizer_warmup_steps, warmup_proportion, n_train_optimization_steps):
+def set_optimizer(model_, learning_rate, optimizer_warmup_steps, n_train_optimization_steps):
     # Prepare optimizer
     param_optimizer = list(model_.named_parameters())
 
@@ -77,16 +77,6 @@ def set_optimizer(model_, learning_rate, optimizer_warmup_steps, warmup_proporti
     return optimizer, scheduler
 
 
-# def pack_tensor(new_tensor, packed_tensor, max_seq_len):
-#     if packed_tensor is None:
-#         return new_tensor, True, None
-#     if new_tensor.size()[1] + packed_tensor.size()[1] > max_seq_len:
-#         return packed_tensor, False, new_tensor
-#     else:
-#         packed_tensor = torch.cat([new_tensor, packed_tensor[:, 1:]], dim=1)
-#         return packed_tensor, True, None
-
-
 def get_data(data_file, arguments, tokenizer_, is_training):
     dataset = read_dataset(
         data_file=data_file,
@@ -97,6 +87,7 @@ def get_data(data_file, arguments, tokenizer_, is_training):
         tokenizer=tokenizer_,
         max_seq_length=arguments.max_seq_length,
         max_query_length=arguments.max_query_length,
+        max_answer_length=arguments.max_answer_length,
         is_training=is_training,
     )
 
@@ -162,7 +153,6 @@ def train(arguments, tokenizer_, model_, device_, latest_epoch_no_):
         model_,
         arguments.learning_rate,
         arguments.optimizer_warmup_steps,
-        arguments.warmup_proportion,
         n_train_optimization_steps,
     )
 

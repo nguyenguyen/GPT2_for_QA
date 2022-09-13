@@ -240,12 +240,12 @@ def read_dataset(data_file, is_training):
     return result
 
 
-def tokenize_data(data, tokenizer, max_seq_length, max_query_length, is_training):
+def tokenize_data(data, tokenizer, max_seq_length, max_query_length, max_answer_length, is_training):
     is_data_truncated = 0
 
     query_tokens = tokenizer.tokenize(data.question_text)
     if len(query_tokens) > max_query_length:
-        query_tokens = query_tokens[0:max_query_length]
+        query_tokens = query_tokens[0:max_query_length-1]
         is_data_truncated = 1
 
     if is_training:
@@ -253,9 +253,7 @@ def tokenize_data(data, tokenizer, max_seq_length, max_query_length, is_training
         # The -5 accounts for [CLS], [SEP], [SEP], [SEP] and [SEP]
         max_context_length = max_seq_length - len(query_tokens) - len(answer_tokens) - 5
     else:
-        answer_tokens = None
-        # The -5 accounts for [CLS], [SEP], [SEP]
-        max_context_length = max_seq_length - len(query_tokens) - 3
+        max_context_length = max_seq_length - len(query_tokens) - max_answer_length - 5
 
     context_tokens = tokenizer.tokenize(data.context_text)
     if len(context_tokens) > max_context_length:
@@ -315,13 +313,13 @@ def add_padding(input_ids, input_mask, segment_ids, max_seq_length, is_training)
     return input_ids, input_mask, segment_ids
 
 
-def convert_data_to_features(dataset, tokenizer, max_seq_length, max_query_length, is_training):
+def convert_data_to_features(dataset, tokenizer, max_seq_length, max_query_length, max_answer_length, is_training):
     result = []
     n_truncated_data = 0
 
     for (data_index, data) in enumerate(tqdm(dataset)):
         context_tokens, query_tokens, answer_tokens, is_data_truncated = tokenize_data(
-            data, tokenizer, max_seq_length, max_query_length, is_training
+            data, tokenizer, max_seq_length, max_query_length, max_answer_length, is_training
         )
         tokens, segment_ids = set_input_tokens(context_tokens, query_tokens, answer_tokens, is_training)
 
