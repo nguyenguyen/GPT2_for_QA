@@ -173,7 +173,6 @@ def train(arguments, tokenizer_, model_, device_, latest_epoch_no_):
             ) = batch
             outputs = model_(input_ids, labels=input_ids, attention_mask=input_mask, token_type_ids=segment_ids)
             loss = outputs[0]
-            print(loss)
             total_loss += loss.item()
             loss.backward()
             pbar.update(1)
