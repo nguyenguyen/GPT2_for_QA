@@ -18,15 +18,14 @@ from config import (
 
 from transformers import GPT2Tokenizer, GPT2LMHeadModel, get_linear_schedule_with_warmup
 from torch.optim import AdamW
-from torch.utils.data import DataLoader, RandomSampler, SequentialSampler
+from torch.utils.data import DataLoader, RandomSampler
 import torch.nn.functional as F
 from datetime import date
 import os
-import glob
 import random
 import numpy as np
 import torch
-from tqdm import tqdm, trange
+from tqdm import tqdm
 import evaluate
 
 import logging
@@ -174,6 +173,7 @@ def train(arguments, tokenizer_, model_, device_, latest_epoch_no_):
             ) = batch
             outputs = model_(input_ids, labels=input_ids, attention_mask=input_mask, token_type_ids=segment_ids)
             loss = outputs[0]
+            print(loss)
             total_loss += loss.item()
             loss.backward()
             pbar.update(1)
