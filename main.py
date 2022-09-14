@@ -173,6 +173,7 @@ def train(arguments, tokenizer_, model_, device_, latest_epoch_no_):
             ) = batch
             outputs = model_(input_ids, labels=input_ids, attention_mask=input_mask, token_type_ids=segment_ids)
             loss = outputs[0]
+            print(loss.item())
             total_loss += loss.item()
             loss.backward()
             pbar.update(1)
@@ -329,8 +330,8 @@ def main():
         model, tokenizer, latest_epoch_no = load_model(args)
     else:
         logger.info("\nLoading model from HuggingFace...")
-        model = GPT2LMHeadModel.from_pretrained("gpt2", cache_dir=MODEL_CACHE_DIR)
-        tokenizer = GPT2Tokenizer.from_pretrained("gpt2", cache_dir=TOKENIZER_CACHE_DIR)
+        model = GPT2LMHeadModel.from_pretrained("gpt2-medium", cache_dir=MODEL_CACHE_DIR)
+        tokenizer = GPT2Tokenizer.from_pretrained("gpt2-medium", cache_dir=TOKENIZER_CACHE_DIR)
 
     logger.info("\nAdding new special tokens to tokenizer vocabulary...")
     tokenizer.add_tokens(["[BOD]", "[SEP]", "[EOD]"])
