@@ -173,7 +173,6 @@ def train(arguments, tokenizer_, model_, device_, latest_epoch_no_):
             ) = batch
             outputs = model_(input_ids, labels=input_ids, attention_mask=input_mask, token_type_ids=segment_ids)
             loss = outputs[0]
-            print(loss.item())
             total_loss += loss.item()
             loss.backward()
             pbar.update(1)
@@ -342,10 +341,10 @@ def main():
         train(args, tokenizer, model, device, latest_epoch_no)
     if args.do_predict:
         generated_list, generated_answers, true_answers = predict(args, tokenizer, model, device)
-        print("\n")
-        print(generated_answers)
-        print("\n")
-        print(true_answers)
+        # print("\n")
+        # print(generated_answers)
+        # print("\n")
+        # print(true_answers)
         measure_evaluation(generated_answers, true_answers)
         # for idx in range(len(generated_list)):
         #     print("\n")
