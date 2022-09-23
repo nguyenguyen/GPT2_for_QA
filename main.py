@@ -186,7 +186,7 @@ def train(arguments, tokenizer_, model_, device_, latest_epoch_no_):
                 model_.zero_grad()
                 global_step += 1
         logger.info(f"Loss: {loss}")
-        if epoch % 10 == 0 or epoch == max_epoch - 1:
+        if epoch % 5 == 0 or epoch == max_epoch - 1:
             save_model(tokenizer_, model_, epoch)
     model_.to(device_)
 
